@@ -7,20 +7,27 @@ export const Footer = () => {
       <section className={footerSectionClassName}>
         <h2 className="mb-2 text-sm font-bold">Розклад із записами</h2>
         <p>Зроблено студентом для студентів — щоб записи пар і важливі моменти з лекцій не губилися.</p>
-        <nav className="mt-3 flex gap-4 max-sm:justify-center" aria-label="Додаткова навігація">
-          <Link className="text-xs font-semibold underline decoration-white/45 underline-offset-4" to={routes.ABOUT}>
+        <nav className="mt-3 flex flex-wrap items-center gap-4 max-sm:justify-center" aria-label="Додаткова навігація">
+          <Link
+            className="text-xs font-semibold text-white underline decoration-white/45 underline-offset-4 hover:decoration-white"
+            to={routes.ABOUT}
+          >
             Про проєкт
           </Link>
-          <Link className="text-xs font-semibold underline decoration-white/45 underline-offset-4" to={routes.CONTACTS}>
+          <Link
+            className="text-xs font-semibold text-white underline decoration-white/45 underline-offset-4 hover:decoration-white"
+            to={routes.CONTACTS}
+          >
             Контакти
           </Link>
           <a
-            className="text-xs font-semibold underline decoration-white/45 underline-offset-4 hover:decoration-white"
+            className="inline-flex items-center gap-1.5 rounded-full border border-white/40 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white no-underline transition-colors hover:border-white/60 hover:bg-white/20"
             href="https://github.com/pabl0cus/student-schedule"
             target="_blank"
             rel="noreferrer"
           >
-            GitHub
+            <span>GitHub</span>
+            <span aria-hidden="true">↗</span>
           </a>
         </nav>
       </section>

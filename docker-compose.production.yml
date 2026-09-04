@@ -1,4 +1,8 @@
 services:
+  transcriber:
+    volumes:
+      - ./data:/data
+
   web:
     networks:
       default:
