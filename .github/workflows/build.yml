@@ -1,4 +1,5 @@
 name: CI
+run-name: Оновлення №${{ github.run_number }}
 
 permissions:
   contents: read
