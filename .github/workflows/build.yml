@@ -107,4 +107,4 @@ jobs:
         run: python -m ruff check src tests
 
       - name: Run tests
-        run: python -m pytest --basetemp=.venv/pytest-ci -p no:cacheprovider
+        run: python -m pytest --basetemp=.pytest-tmp -p no:cacheprovider
