@@ -429,7 +429,7 @@ const LocalAdmin = () => {
   return (
     <div className="flex min-h-screen flex-col bg-white">
       <header className="flex min-h-24 items-center bg-white px-6 py-5 shadow-header sm:px-9">
-        <LogoIcon className="h-auto w-full max-w-[145px]" aria-label="Розклад КПІ" />
+        <LogoIcon viewBox="0 0 185 64" className="h-auto w-full max-w-[145px]" aria-label="Розклад КПІ" />
       </header>
       <main className="grow bg-neutral-50">
         <div className="flex items-start justify-center px-4 py-8 sm:px-9 sm:py-12">

@@ -11,7 +11,7 @@ export const AboutHeader = () => {
   return (
     <header ref={headerRef} className="flex items-center justify-between py-7">
       <a className="w-[130px]" href="/">
-        <LogoIcon className="max-h-10 w-full max-w-[116px] 2xl:max-h-16 2xl:max-w-[185px]" />
+        <LogoIcon viewBox="0 0 185 64" className="max-h-10 w-full max-w-[116px] 2xl:max-h-16 2xl:max-w-[185px]" />
       </a>
       <DefaultMenu pathname={pathname} />
       <MobileMenu pathname={pathname} anchor={headerRef} />
