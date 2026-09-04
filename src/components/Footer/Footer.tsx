@@ -14,6 +14,14 @@ export const Footer = () => {
           <Link className="text-xs font-semibold underline decoration-white/45 underline-offset-4" to={routes.CONTACTS}>
             Контакти
           </Link>
+          <a
+            className="text-xs font-semibold underline decoration-white/45 underline-offset-4 hover:decoration-white"
+            href="https://github.com/pabl0cus/student-schedule"
+            target="_blank"
+            rel="noreferrer"
+          >
+            GitHub
+          </a>
         </nav>
       </section>
       <section className={footerSectionClassName}>
