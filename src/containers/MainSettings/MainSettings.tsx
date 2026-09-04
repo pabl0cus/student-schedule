@@ -6,11 +6,13 @@ import { routes } from '../../common/constants/routes';
 import { getLocalStorageItem } from '../../common/utils/parsedLocalStorage';
 import { useStore } from '../../store';
 import { cn } from '../../common/utils/cn';
+import RecordingSearchInput from '../../components/RecordingSearchInput';
 
 const scheduleLinks = [
   { value: routes.INDEX, label: 'Розклад занять' },
   { value: routes.SESSION, label: 'Розклад сесії' },
   { value: routes.LECTURER, label: 'Розклад для викладачів' },
+  { value: routes.RECORDINGS, label: 'Пошук записів' },
 ];
 
 const MainSettings = () => {
@@ -20,6 +22,15 @@ const MainSettings = () => {
 
   const getLinkUrl = (url: string) => {
     const nextSearchParams = new URLSearchParams(searchParams);
+
+    if (url !== routes.RECORDINGS) {
+      nextSearchParams.delete('q');
+      nextSearchParams.delete('scope');
+      nextSearchParams.delete('page');
+    } else {
+      nextSearchParams.delete('week');
+      nextSearchParams.delete('recordingId');
+    }
 
     if (url.includes(routes.LECTURER)) {
       const savedLecturerId = lecturerId ?? getLocalStorageItem('lecturerId');
@@ -85,6 +96,15 @@ const MainSettings = () => {
               <>
                 <WeekNavigator />
                 <LecturerSearch />
+              </>
+            }
+          />
+          <Route
+            path={routes.RECORDINGS}
+            element={
+              <>
+                <GroupSearch />
+                <RecordingSearchInput />
               </>
             }
           />

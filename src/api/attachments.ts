@@ -1,6 +1,7 @@
 import { MAX_ATTACHMENT_UPLOAD_BYTES } from '../common/constants/uploadLimits';
-import { LessonAttachment } from '../models/LessonAttachment';
+import { AttachmentSearchPage, AttachmentSearchResult, LessonAttachment } from '../models/LessonAttachment';
 import { getRecordingApiUrl, LOCAL_REQUEST_HEADER, LOCAL_REQUEST_VALUE, parseApiError } from './recordingsShared';
+import { RecordingUploadContext } from '../common/utils/recordingContext';
 const ATTACHMENTS_PAGE_SIZE = 200;
 const MAX_ATTACHMENTS_PER_LESSON = 10_000;
 
@@ -22,12 +23,26 @@ interface RawAttachment {
   content_url?: string | null;
 }
 
+interface RawAttachmentSearchResult extends RawAttachment {
+  group_id: string;
+  group_label: string;
+  matched_fields: AttachmentSearchResult['matchedFields'];
+}
+
+interface RawAttachmentSearchPage {
+  items: RawAttachmentSearchResult[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 interface UploadAttachmentOptions {
   file: File;
   lessonKey: string;
   lessonTitle: string;
   scopeLabel: string;
   recordedAt: string;
+  context: RecordingUploadContext;
   onProgress?: (progress: number) => void;
 }
 
@@ -114,12 +129,43 @@ export const getLessonAttachments = async (lessonKeys: string | string[]): Promi
   return Array.from(attachmentsById.values());
 };
 
+export const searchAttachments = async ({
+  groupId,
+  query,
+  limit,
+  offset,
+}: {
+  groupId: string;
+  query: string;
+  limit: number;
+  offset: number;
+}): Promise<AttachmentSearchPage> => {
+  const search = new URLSearchParams({
+    group_id: groupId,
+    q: query,
+    limit: String(limit),
+    offset: String(offset),
+  });
+  const page = await request<RawAttachmentSearchPage>(`/attachments/search?${search}`);
+
+  return {
+    ...page,
+    items: page.items.map((item) => ({
+      ...normalizeAttachment(item),
+      groupId: item.group_id,
+      groupLabel: item.group_label,
+      matchedFields: item.matched_fields,
+    })),
+  };
+};
+
 export const uploadAttachment = ({
   file,
   lessonKey,
   lessonTitle,
   scopeLabel,
   recordedAt,
+  context,
   onProgress,
 }: UploadAttachmentOptions): Promise<LessonAttachment> => {
   if (file.size > MAX_ATTACHMENT_UPLOAD_BYTES) {
@@ -132,6 +178,14 @@ export const uploadAttachment = ({
   formData.append('lesson_title', lessonTitle);
   formData.append('scope_label', scopeLabel);
   formData.append('recorded_at', recordedAt);
+  formData.append(
+    'context_json',
+    JSON.stringify({
+      groups: context.groups,
+      lecturer_name: context.lecturerName,
+      lesson_keys: context.lessonKeys,
+    }),
+  );
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();

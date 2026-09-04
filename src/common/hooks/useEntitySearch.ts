@@ -36,6 +36,7 @@ export const useEntitySearch = <T extends EntityWithNameAndId>(
     const nextSearchParams = new URLSearchParams(searchParams);
     nextSearchParams.set(storageKey, item.id);
     nextSearchParams.delete('recordingId');
+    nextSearchParams.delete('page');
     setSearchParams(nextSearchParams, { replace: true });
 
     setLocalStorageItem(storageKey, item.id);

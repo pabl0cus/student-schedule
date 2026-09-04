@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from 'react-query';
-import { getLessonAttachments, uploadAttachment } from '../api/attachments';
+import { getLessonAttachments, searchAttachments, uploadAttachment } from '../api/attachments';
 
 type LessonKeys = string | string[] | undefined;
 
@@ -25,12 +25,35 @@ export const useLessonAttachments = (lessonKeys?: string | string[], enabled = t
   });
 };
 
+export const useAttachmentSearch = ({
+  groupId,
+  query,
+  limit,
+  offset,
+  enabled = true,
+}: {
+  groupId?: string;
+  query: string;
+  limit: number;
+  offset: number;
+  enabled?: boolean;
+}) =>
+  useQuery({
+    queryKey: ['attachment-search', groupId, query, limit, offset],
+    queryFn: () => searchAttachments({ groupId: groupId || '', query, limit, offset }),
+    enabled: enabled && Boolean(groupId),
+    keepPreviousData: true,
+    retry: false,
+    staleTime: 30_000,
+  });
+
 export const useUploadAttachment = () => {
   const queryClient = useQueryClient();
 
   return useMutation(uploadAttachment, {
     onSuccess: () => {
       queryClient.invalidateQueries(['attachments']);
+      queryClient.invalidateQueries(['attachment-search']);
     },
   });
 };

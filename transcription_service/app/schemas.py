@@ -19,12 +19,17 @@ from .config import COMMUNITY_MEDIA_PROTOCOL_MAX_BYTES
 
 RecordingStatus = Literal["queued", "processing", "ready", "failed"]
 ScheduleScopeType = Literal["group", "lecturer"]
+RecordingSearchScope = Literal["all", "subject", "lecturer", "transcript"]
+RecordingSearchField = Literal["lesson_title", "lecturer_name", "transcript"]
+AttachmentSearchField = Literal["lesson_title", "file_name"]
 MAX_TRANSCRIPT_DURATION_SECONDS = 24 * 60 * 60
 MAX_TRANSCRIPT_SEGMENTS = 20_000
 MAX_TRANSCRIPT_WORDS = 100_000
 MAX_TRANSCRIPT_SEGMENT_TEXT_LENGTH = 8_192
 MAX_TRANSCRIPT_WORD_LENGTH = 256
 MAX_COMMUNITY_MEDIA_BYTES = COMMUNITY_MEDIA_PROTOCOL_MAX_BYTES
+MAX_UPLOAD_LESSON_KEYS = 8
+MAX_UPLOAD_LESSON_KEY_LENGTH = 4_096
 
 
 def _normalized_text(value: str, *, field_name: str) -> str:
@@ -318,6 +323,67 @@ class RecordingDetail(RecordingSummary):
     transcript: list[TranscriptSegment] = Field(default_factory=list)
 
 
+class RecordingContextGroup(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9._-]+$")
+    label: str = Field(min_length=1, max_length=200)
+
+    @field_validator("label")
+    @classmethod
+    def normalize_label(cls, value: str) -> str:
+        return _normalized_text(value, field_name="group label")
+
+
+class RecordingUploadContext(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    groups: list[RecordingContextGroup] = Field(default_factory=list, max_length=32)
+    lecturer_name: str | None = Field(default=None, max_length=200)
+    lesson_keys: list[str] = Field(default_factory=list, max_length=MAX_UPLOAD_LESSON_KEYS)
+
+    @field_validator("lecturer_name")
+    @classmethod
+    def normalize_lecturer_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return _normalized_text(value, field_name="lecturer name")
+
+    @field_validator("lesson_keys")
+    @classmethod
+    def normalize_lesson_keys(cls, values: list[str]) -> list[str]:
+        normalized: list[str] = []
+        for value in values:
+            lesson_key = _normalized_text(value, field_name="lesson key")
+            if len(lesson_key) > MAX_UPLOAD_LESSON_KEY_LENGTH:
+                raise ValueError("lesson key is too long")
+            if lesson_key not in normalized:
+                normalized.append(lesson_key)
+        return normalized
+
+
+class RecordingSearchSegment(BaseModel):
+    id: int = Field(ge=0)
+    start: float = Field(ge=0, le=MAX_TRANSCRIPT_DURATION_SECONDS, allow_inf_nan=False)
+    end: float = Field(ge=0, le=MAX_TRANSCRIPT_DURATION_SECONDS, allow_inf_nan=False)
+    text: str = Field(min_length=1, max_length=MAX_TRANSCRIPT_SEGMENT_TEXT_LENGTH)
+
+
+class RecordingSearchResult(RecordingSummary):
+    group_id: str
+    group_label: str
+    lecturer_name: str | None = None
+    matched_fields: list[RecordingSearchField] = Field(default_factory=list)
+    match_segment: RecordingSearchSegment | None = None
+
+
+class RecordingSearchResponse(BaseModel):
+    items: list[RecordingSearchResult]
+    total: int = Field(ge=0)
+    limit: int = Field(ge=1)
+    offset: int = Field(ge=0)
+
+
 class AttachmentSummary(BaseModel):
     id: str
     lesson_key: str
@@ -332,6 +398,19 @@ class AttachmentSummary(BaseModel):
     created_at: datetime
     updated_at: datetime
     content_url: str
+
+
+class AttachmentSearchResult(AttachmentSummary):
+    group_id: str
+    group_label: str
+    matched_fields: list[AttachmentSearchField] = Field(default_factory=list)
+
+
+class AttachmentSearchResponse(BaseModel):
+    items: list[AttachmentSearchResult]
+    total: int = Field(ge=0)
+    limit: int = Field(ge=1)
+    offset: int = Field(ge=0)
 
 
 class HealthResponse(BaseModel):

@@ -18,6 +18,7 @@ import { getErrorMessage } from '../../common/utils/getErrorMessage';
 
 interface Props {
   initialRecordingId?: string;
+  initialTime?: number;
   open: boolean;
   recordings: Recording[];
   onOpenChange: (open: boolean) => void;
@@ -29,6 +30,7 @@ const PUBLIC_SCHEDULE_LINK_PARAMS: Record<string, string[]> = {
   [routes.INDEX]: ['groupId', 'week'],
   [routes.SESSION]: ['groupId'],
   [routes.LECTURER]: ['lecturerId', 'week'],
+  [routes.RECORDINGS]: ['groupId', 'q', 'scope'],
 };
 
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -126,13 +128,14 @@ const HighlightedText = ({ text, query }: { text: string; query: string }) => {
   );
 };
 
-const RecordingPlayerDialog = ({ initialRecordingId, open, recordings, onOpenChange }: Props) => {
+const RecordingPlayerDialog = ({ initialRecordingId, initialTime, open, recordings, onOpenChange }: Props) => {
   const [selectedRecordingId, setSelectedRecordingId] = useState(initialRecordingId);
   const [query, setQuery] = useState('');
   const [currentTime, setCurrentTime] = useState(0);
   const [mediaError, setMediaError] = useState<string>();
   const [copyLinkState, setCopyLinkState] = useState<CopyLinkState>({ status: 'idle' });
   const mediaRef = useRef<HTMLMediaElement | null>(null);
+  const pendingInitialTimeRef = useRef<number>();
   const activeSegmentRef = useRef<HTMLButtonElement | null>(null);
   const manualLinkRef = useRef<HTMLInputElement | null>(null);
   const {
@@ -148,18 +151,22 @@ const RecordingPlayerDialog = ({ initialRecordingId, open, recordings, onOpenCha
     if (open) {
       setSelectedRecordingId(initialRecordingId);
       setQuery('');
-      setCurrentTime(0);
+      const startTime = Math.max(0, initialTime || 0);
+      pendingInitialTimeRef.current = startTime;
+      setCurrentTime(startTime);
       setMediaError(undefined);
       setCopyLinkState({ status: 'idle' });
     }
-  }, [initialRecordingId, open]);
+  }, [initialRecordingId, initialTime, open]);
 
   useEffect(() => {
     setMediaError(undefined);
     setCopyLinkState({ status: 'idle' });
     setQuery('');
-    setCurrentTime(0);
-  }, [selectedRecordingId]);
+    const startTime = selectedRecordingId === initialRecordingId ? Math.max(0, initialTime || 0) : 0;
+    pendingInitialTimeRef.current = startTime;
+    setCurrentTime(startTime);
+  }, [initialRecordingId, initialTime, selectedRecordingId]);
 
   const selectedSummary = recordings.find((recording) => recording.id === selectedRecordingId);
   const recording = recordingDetails || selectedSummary;
@@ -197,6 +204,18 @@ const RecordingPlayerDialog = ({ initialRecordingId, open, recordings, onOpenCha
 
     mediaRef.current.currentTime = segment.start;
     void mediaRef.current.play();
+  };
+
+  const applyInitialTime = (media: HTMLMediaElement) => {
+    const requestedTime = pendingInitialTimeRef.current;
+    if (requestedTime === undefined) {
+      return;
+    }
+    const duration = Number.isFinite(media.duration) ? media.duration : requestedTime;
+    const nextTime = Math.min(requestedTime, Math.max(0, duration));
+    media.currentTime = nextTime;
+    setCurrentTime(nextTime);
+    pendingInitialTimeRef.current = undefined;
   };
 
   const copyRecordingLink = async () => {
@@ -356,6 +375,7 @@ const RecordingPlayerDialog = ({ initialRecordingId, open, recordings, onOpenCha
                     }}
                     src={getRecordingMediaUrl(recording.id)}
                     onCanPlay={() => setMediaError(undefined)}
+                    onLoadedMetadata={(event) => applyInitialTime(event.currentTarget)}
                     onError={() =>
                       setMediaError('Не вдалося відтворити відео в браузері. Спробуйте запис в іншому форматі.')
                     }
@@ -382,6 +402,7 @@ const RecordingPlayerDialog = ({ initialRecordingId, open, recordings, onOpenCha
                       }}
                       src={getRecordingMediaUrl(recording.id)}
                       onCanPlay={() => setMediaError(undefined)}
+                      onLoadedMetadata={(event) => applyInitialTime(event.currentTarget)}
                       onError={() =>
                         setMediaError('Не вдалося відтворити аудіо в браузері. Спробуйте запис в іншому форматі.')
                       }

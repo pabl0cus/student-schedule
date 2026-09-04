@@ -1,4 +1,4 @@
-import { Recording } from '../models/Recording';
+import { Recording, RecordingSearchPage, RecordingSearchResult, RecordingSearchScope } from '../models/Recording';
 import { MAX_RECORDING_UPLOAD_BYTES } from '../common/constants/uploadLimits';
 import {
   getRecordingApiUrl,
@@ -8,7 +8,9 @@ import {
   normalizeRecording,
   parseApiError,
   RawRecording,
+  RawTranscriptSegment,
 } from './recordingsShared';
+import { RecordingUploadContext } from '../common/utils/recordingContext';
 
 interface UploadRecordingOptions {
   file: File;
@@ -16,7 +18,23 @@ interface UploadRecordingOptions {
   lessonTitle: string;
   scopeLabel: string;
   recordedAt: string;
+  context: RecordingUploadContext;
   onProgress?: (progress: number) => void;
+}
+
+interface RawRecordingSearchResult extends RawRecording {
+  group_id: string;
+  group_label: string;
+  lecturer_name?: string | null;
+  matched_fields: RecordingSearchResult['matchedFields'];
+  match_segment?: RawTranscriptSegment | null;
+}
+
+interface RawRecordingSearchPage {
+  items: RawRecordingSearchResult[];
+  total: number;
+  limit: number;
+  offset: number;
 }
 
 const request = async <T>(path: string, options?: RequestInit): Promise<T> => {
@@ -60,12 +78,53 @@ export const getRecording = async (recordingId: string): Promise<Recording> => {
   return normalizeRecording(recording);
 };
 
+export const searchRecordings = async ({
+  groupId,
+  query,
+  scope,
+  limit,
+  offset,
+}: {
+  groupId: string;
+  query: string;
+  scope: RecordingSearchScope;
+  limit: number;
+  offset: number;
+}): Promise<RecordingSearchPage> => {
+  const search = new URLSearchParams({
+    group_id: groupId,
+    q: query,
+    scope,
+    limit: String(limit),
+    offset: String(offset),
+  });
+  const page = await request<RawRecordingSearchPage>(`/recordings/search?${search}`);
+
+  return {
+    ...page,
+    items: page.items.map((item) => ({
+      ...normalizeRecording(item),
+      groupId: item.group_id,
+      groupLabel: item.group_label,
+      lecturerName: item.lecturer_name || undefined,
+      matchedFields: item.matched_fields,
+      matchSegment: item.match_segment
+        ? {
+            ...item.match_segment,
+            words: item.match_segment.words || [],
+          }
+        : undefined,
+    })),
+  };
+};
+
 export const uploadRecording = ({
   file,
   lessonKey,
   lessonTitle,
   scopeLabel,
   recordedAt,
+  context,
   onProgress,
 }: UploadRecordingOptions): Promise<Recording> => {
   if (file.size > MAX_RECORDING_UPLOAD_BYTES) {
@@ -78,6 +137,14 @@ export const uploadRecording = ({
   formData.append('lesson_title', lessonTitle);
   formData.append('scope_label', scopeLabel);
   formData.append('recorded_at', recordedAt);
+  formData.append(
+    'context_json',
+    JSON.stringify({
+      groups: context.groups,
+      lecturer_name: context.lecturerName,
+      lesson_keys: context.lessonKeys,
+    }),
+  );
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();

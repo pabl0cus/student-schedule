@@ -1,6 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from 'react-query';
-import { getLessonRecordings, getRecording, retryRecording, uploadRecording } from '../api/recordings';
-import { Recording } from '../models/Recording';
+import {
+  getLessonRecordings,
+  getRecording,
+  retryRecording,
+  searchRecordings,
+  uploadRecording,
+} from '../api/recordings';
+import { Recording, RecordingSearchScope } from '../models/Recording';
 
 const isRunning = (recording?: Recording) => recording?.status === 'queued' || recording?.status === 'processing';
 
@@ -38,6 +44,30 @@ export const useRecording = (recordingId?: string, enabled = true) =>
     refetchInterval: (recording: Recording | undefined) => (isRunning(recording) ? 2_500 : false),
   });
 
+export const useRecordingSearch = ({
+  groupId,
+  query,
+  scope,
+  limit,
+  offset,
+  enabled = true,
+}: {
+  groupId?: string;
+  query: string;
+  scope: RecordingSearchScope;
+  limit: number;
+  offset: number;
+  enabled?: boolean;
+}) =>
+  useQuery({
+    queryKey: ['recording-search', groupId, query, scope, limit, offset],
+    queryFn: () => searchRecordings({ groupId: groupId || '', query, scope, limit, offset }),
+    enabled: enabled && Boolean(groupId),
+    keepPreviousData: true,
+    retry: false,
+    staleTime: 30_000,
+  });
+
 export const useUploadRecording = () => {
   const queryClient = useQueryClient();
 
@@ -45,6 +75,7 @@ export const useUploadRecording = () => {
     onSuccess: (recording) => {
       queryClient.setQueryData(['recording', recording.id], recording);
       queryClient.invalidateQueries(['recordings']);
+      queryClient.invalidateQueries(['recording-search']);
     },
   });
 };
@@ -56,6 +87,7 @@ export const useRetryRecording = () => {
     onSuccess: (recording) => {
       queryClient.setQueryData(['recording', recording.id], recording);
       queryClient.invalidateQueries(['recordings']);
+      queryClient.invalidateQueries(['recording-search']);
     },
   });
 };

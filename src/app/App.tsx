@@ -12,6 +12,7 @@ const Contacts = lazy(() => import('../containers/About/Contacts').then((module)
 const Project = lazy(() => import('../containers/About/Project').then((module) => ({ default: module.Project })));
 const LecturerSchedule = lazy(() => import('../containers/LecturerSchedule'));
 const ScheduleExams = lazy(() => import('../containers/ScheduleExams'));
+const RecordingSearch = lazy(() => import('../containers/RecordingSearch'));
 const Admin = lazy(() => import('../containers/LocalAdmin'));
 const RecordingDeepLink = lazy(() => import('../components/RecordingAttachment/RecordingDeepLink'));
 
@@ -92,6 +93,7 @@ function App() {
               <Route index element={<GroupSchedule />} />
               <Route path={routes.SESSION} element={<ScheduleExams />} />
               <Route path={routes.LECTURER} element={<LecturerSchedule />} />
+              <Route path={routes.RECORDINGS} element={<RecordingSearch />} />
             </Route>
             <Route element={<AboutLayout />}>
               <Route path={routes.ABOUT} element={<Project />} />

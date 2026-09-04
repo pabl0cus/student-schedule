@@ -31,3 +31,21 @@ export interface Recording {
   error?: string;
   transcript?: TranscriptSegment[];
 }
+
+export type RecordingSearchScope = 'all' | 'subject' | 'lecturer' | 'transcript';
+export type RecordingSearchField = 'lesson_title' | 'lecturer_name' | 'transcript';
+
+export interface RecordingSearchResult extends Recording {
+  groupId: string;
+  groupLabel: string;
+  lecturerName?: string;
+  matchedFields: RecordingSearchField[];
+  matchSegment?: TranscriptSegment;
+}
+
+export interface RecordingSearchPage {
+  items: RecordingSearchResult[];
+  total: number;
+  limit: number;
+  offset: number;
+}

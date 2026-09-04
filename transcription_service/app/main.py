@@ -45,6 +45,7 @@ from .database import (
     RecordingRepository,
     ScheduleSnapshotConflictError,
     ScheduleSnapshotTooLargeError,
+    recording_search_tokens,
 )
 from .middleware import (
     LOCAL_REQUEST_HEADER,
@@ -54,6 +55,7 @@ from .middleware import (
 from .schemas import (
     AdminLoginRequest,
     AdminSessionResponse,
+    AttachmentSearchResponse,
     AttachmentSummary,
     CommunityJobClaim,
     CommunityJobHeartbeat,
@@ -65,7 +67,10 @@ from .schemas import (
     CommunityWorkerPublic,
     HealthResponse,
     RecordingDetail,
+    RecordingSearchResponse,
+    RecordingSearchScope,
     RecordingSummary,
+    RecordingUploadContext,
     ScheduleScopeType,
     ScheduleSnapshot,
     ScheduleSnapshotMetadata,
@@ -92,6 +97,8 @@ ALLOWED_EXTENSIONS = {
 }
 MAX_LESSON_KEY_LENGTH = 4096
 MAX_LIST_PAGE_SIZE = 200
+MAX_SEARCH_QUERY_LENGTH = 200
+MAX_UPLOAD_CONTEXT_LENGTH = 16 * 1024
 TEXT_MAX_LENGTHS = {
     "lesson_key": MAX_LESSON_KEY_LENGTH,
     "lesson_title": 300,
@@ -199,6 +206,27 @@ def _scope_id(value: str) -> str:
         raise HTTPException(status_code=422, detail="scope_id must contain at most 128 characters")
     if not re.fullmatch(r"[A-Za-z0-9._-]+", normalized):
         raise HTTPException(status_code=422, detail="scope_id contains unsupported characters")
+    return normalized
+
+
+def _upload_context(value: str | None) -> RecordingUploadContext:
+    if value is None or not value.strip():
+        return RecordingUploadContext()
+    if len(value) > MAX_UPLOAD_CONTEXT_LENGTH:
+        raise HTTPException(status_code=422, detail="context_json is too large")
+    try:
+        return RecordingUploadContext.model_validate_json(value)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="context_json is invalid") from exc
+
+
+def _search_query(value: str) -> str:
+    normalized = unicodedata.normalize("NFKC", value).strip()
+    if normalized and not recording_search_tokens(normalized):
+        raise HTTPException(
+            status_code=422,
+            detail="Search query must contain a word with at least two characters",
+        )
     return normalized
 
 
@@ -441,7 +469,10 @@ def _recover_staged_audio_deletions(
                 _sync_directory(prepared_audio_dir)
                 continue
             if staged_path.is_symlink():
-                logger.error("Refusing to restore symlinked prepared-audio deletion %s", staged_path)
+                logger.error(
+                    "Refusing to restore symlinked prepared-audio deletion %s",
+                    staged_path,
+                )
                 continue
             expected_filename = f"{recording_id}.ogg"
             if artifact["stored_filename"] != expected_filename:
@@ -459,7 +490,10 @@ def _recover_staged_audio_deletions(
                 continue
             os.replace(staged_path, original_path)
             _sync_directory(prepared_audio_dir)
-            logger.warning("Restored prepared audio for interrupted recording deletion %s", recording_id)
+            logger.warning(
+                "Restored prepared audio for interrupted recording deletion %s",
+                recording_id,
+            )
         except Exception:
             logger.exception("Could not recover staged prepared-audio artifact %s", staged_path)
 
@@ -519,9 +553,7 @@ def create_app(
         max_output_bytes=service_settings.max_prepared_audio_bytes,
     )
     audio_preparer_expected = (
-        service_settings.audio_preparation_enabled
-        if start_audio_preparer is None
-        else start_audio_preparer
+        service_settings.audio_preparation_enabled if start_audio_preparer is None else start_audio_preparer
     )
 
     @asynccontextmanager
@@ -569,7 +601,10 @@ def create_app(
             ("POST", "/attachments"): service_settings.max_attachment_request_bytes,
         },
         prefix_max_bytes={
-            ("PUT", f"{COMMUNITY_API_PREFIX}/jobs/"): service_settings.max_worker_result_bytes,
+            (
+                "PUT",
+                f"{COMMUNITY_API_PREFIX}/jobs/",
+            ): service_settings.max_worker_result_bytes,
         },
     )
 
@@ -579,7 +614,12 @@ def create_app(
             allow_origins=list(service_settings.allowed_origins),
             allow_credentials=True,
             allow_methods=["DELETE", "GET", "POST", "PUT", "OPTIONS"],
-            allow_headers=["Content-Type", "Range", COMMUNITY_LEASE_HEADER, LOCAL_REQUEST_HEADER],
+            allow_headers=[
+                "Content-Type",
+                "Range",
+                COMMUNITY_LEASE_HEADER,
+                LOCAL_REQUEST_HEADER,
+            ],
             expose_headers=["Accept-Ranges", "Content-Length", "Content-Range"],
         )
 
@@ -823,12 +863,15 @@ def create_app(
             str(worker_record["id"]),
             lease_token,
         )
-        if service_repository.validate_remote_lease(
-            recording_id=normalized_id,
-            worker_id=str(worker_record["id"]),
-            claim_id=claim_id,
-            lease_token_hash=lease_token_hash,
-        ) is None:
+        if (
+            service_repository.validate_remote_lease(
+                recording_id=normalized_id,
+                worker_id=str(worker_record["id"]),
+                claim_id=claim_id,
+                lease_token_hash=lease_token_hash,
+            )
+            is None
+        ):
             raise HTTPException(status_code=409, detail="Transcription lease is no longer valid")
 
         audio_artifact = service_repository.get_audio_artifact(normalized_id)
@@ -906,7 +949,10 @@ def create_app(
         lease_token: Annotated[str | None, Header(alias=COMMUNITY_LEASE_HEADER)] = None,
     ) -> dict[str, str]:
         if request.headers.get("content-encoding", "identity").lower() != "identity":
-            raise HTTPException(status_code=415, detail="Compressed transcription results are not supported")
+            raise HTTPException(
+                status_code=415,
+                detail="Compressed transcription results are not supported",
+            )
         normalized_id, claim_id, lease_token_hash = remote_lease_identity(
             recording_id,
             str(worker_record["id"]),
@@ -955,12 +1001,15 @@ def create_app(
             str(worker_record["id"]),
             lease_token,
         )
-        if service_repository.validate_remote_lease(
-            recording_id=normalized_id,
-            worker_id=str(worker_record["id"]),
-            claim_id=claim_id,
-            lease_token_hash=lease_token_hash,
-        ) is None:
+        if (
+            service_repository.validate_remote_lease(
+                recording_id=normalized_id,
+                worker_id=str(worker_record["id"]),
+                claim_id=claim_id,
+                lease_token_hash=lease_token_hash,
+            )
+            is None
+        ):
             raise HTTPException(status_code=409, detail="Transcription lease is no longer valid")
         reason = f"{release.code}: {release.message or 'no details'}"
         benign_release = release.code in {"outside_schedule", "shutdown", "cancelled"}
@@ -1009,7 +1058,10 @@ def create_app(
     def _delete_admin_recording(recording_id: str) -> None:
         recording = _get_recording_or_404(service_repository, recording_id)
         if recording["status"] not in ("ready", "failed"):
-            raise HTTPException(status_code=409, detail="Only completed or failed recordings can be deleted")
+            raise HTTPException(
+                status_code=409,
+                detail="Only completed or failed recordings can be deleted",
+            )
 
         media_path = _resolve_media_deletion_path(service_settings.media_dir, str(recording["stored_filename"]))
         deletion_targets = [(media_path, service_settings.media_dir)]
@@ -1057,7 +1109,10 @@ def create_app(
             restore_staged_files()
             if deletion_result == "not_found":
                 raise HTTPException(status_code=404, detail="Recording not found")
-            raise HTTPException(status_code=409, detail="Only completed or failed recordings can be deleted")
+            raise HTTPException(
+                status_code=409,
+                detail="Only completed or failed recordings can be deleted",
+            )
 
         for _, staged_path, storage_dir in staged_files:
             try:
@@ -1078,6 +1133,28 @@ def create_app(
         media_prefix = _media_prefix(request)
         return [_public_recording(recording, media_prefix=media_prefix) for recording in recordings]
 
+    @application.get("/recordings/search", response_model=RecordingSearchResponse)
+    def search_recordings(
+        request: Request,
+        group_id: Annotated[str, Query(min_length=1, max_length=128)],
+        q: Annotated[str, Query(max_length=MAX_SEARCH_QUERY_LENGTH)] = "",
+        scope: RecordingSearchScope = "all",
+        limit: Annotated[int, Query(ge=1, le=50)] = 20,
+        offset: Annotated[int, Query(ge=0)] = 0,
+    ) -> dict[str, object]:
+        result = service_repository.search_recordings(
+            group_id=_scope_id(group_id),
+            query=_search_query(q),
+            scope=scope,
+            limit=limit,
+            offset=offset,
+        )
+        media_prefix = _media_prefix(request)
+        return {
+            **result,
+            "items": [_public_recording(recording, media_prefix=media_prefix) for recording in result["items"]],
+        }
+
     @application.get("/attachments", response_model=list[AttachmentSummary])
     def list_attachments(
         request: Request,
@@ -1094,7 +1171,31 @@ def create_app(
         media_prefix = _media_prefix(request)
         return [_public_attachment(attachment, media_prefix=media_prefix) for attachment in attachments]
 
-    @application.post("/attachments", response_model=AttachmentSummary, status_code=status.HTTP_201_CREATED)
+    @application.get("/attachments/search", response_model=AttachmentSearchResponse)
+    def search_attachments(
+        request: Request,
+        group_id: Annotated[str, Query(min_length=1, max_length=128)],
+        q: Annotated[str, Query(max_length=MAX_SEARCH_QUERY_LENGTH)] = "",
+        limit: Annotated[int, Query(ge=1, le=50)] = 20,
+        offset: Annotated[int, Query(ge=0)] = 0,
+    ) -> dict[str, object]:
+        result = service_repository.search_attachments(
+            group_id=_scope_id(group_id),
+            query=_search_query(q),
+            limit=limit,
+            offset=offset,
+        )
+        media_prefix = _media_prefix(request)
+        return {
+            **result,
+            "items": [_public_attachment(attachment, media_prefix=media_prefix) for attachment in result["items"]],
+        }
+
+    @application.post(
+        "/attachments",
+        response_model=AttachmentSummary,
+        status_code=status.HTTP_201_CREATED,
+    )
     async def upload_attachment(
         request: Request,
         file: Annotated[UploadFile, File()],
@@ -1102,11 +1203,13 @@ def create_app(
         lesson_title: Annotated[str, Form()],
         scope_label: Annotated[str, Form()],
         recorded_at: Annotated[str | None, Form()] = None,
+        context_json: Annotated[str | None, Form(max_length=MAX_UPLOAD_CONTEXT_LENGTH)] = None,
     ) -> dict[str, object]:
         normalized_key = _clean_text(lesson_key, "lesson_key")
         normalized_title = _clean_text(lesson_title, "lesson_title")
         normalized_scope = _clean_text(scope_label, "scope_label")
         normalized_recorded_at = _recorded_at(recorded_at)
+        upload_context = _upload_context(context_json)
         original_filename = _filename_leaf(file.filename)
         attachment_id = str(uuid4())
         stored_filename = attachment_id
@@ -1144,6 +1247,9 @@ def create_app(
                 content_type=_attachment_content_type(file, original_filename),
                 size_bytes=size_bytes,
                 recorded_at=normalized_recorded_at,
+                groups=[(group.id, group.label) for group in upload_context.groups],
+                lecturer_name=upload_context.lecturer_name,
+                lesson_keys=upload_context.lesson_keys,
             )
             completed = True
         finally:
@@ -1153,7 +1259,11 @@ def create_app(
             try:
                 await file.close()
             except Exception:
-                logger.warning("Could not close uploaded attachment %s", original_filename, exc_info=True)
+                logger.warning(
+                    "Could not close uploaded attachment %s",
+                    original_filename,
+                    exc_info=True,
+                )
 
         return _public_attachment(attachment, media_prefix=_media_prefix(request))
 
@@ -1255,7 +1365,11 @@ def create_app(
             response.status_code = status.HTTP_200_OK
         return archived
 
-    @application.post("/recordings", response_model=RecordingSummary, status_code=status.HTTP_201_CREATED)
+    @application.post(
+        "/recordings",
+        response_model=RecordingSummary,
+        status_code=status.HTTP_201_CREATED,
+    )
     async def upload_recording(
         request: Request,
         file: Annotated[UploadFile, File()],
@@ -1263,11 +1377,13 @@ def create_app(
         lesson_title: Annotated[str, Form()],
         scope_label: Annotated[str, Form()],
         recorded_at: Annotated[str | None, Form()] = None,
+        context_json: Annotated[str | None, Form(max_length=MAX_UPLOAD_CONTEXT_LENGTH)] = None,
     ) -> dict[str, object]:
         normalized_key = _clean_text(lesson_key, "lesson_key")
         normalized_title = _clean_text(lesson_title, "lesson_title")
         normalized_scope = _clean_text(scope_label, "scope_label")
         normalized_recorded_at = _recorded_at(recorded_at)
+        upload_context = _upload_context(context_json)
         original_filename, extension = _safe_original_filename(file.filename)
         recording_id = str(uuid4())
         stored_filename = f"{recording_id}{extension}"
@@ -1281,7 +1397,10 @@ def create_app(
                 while chunk := await file.read(service_settings.upload_chunk_bytes):
                     size_bytes += len(chunk)
                     if size_bytes > service_settings.max_upload_bytes:
-                        raise HTTPException(status_code=413, detail="Uploaded media exceeds the configured size limit")
+                        raise HTTPException(
+                            status_code=413,
+                            detail="Uploaded media exceeds the configured size limit",
+                        )
                     output.write(chunk)
 
                 if size_bytes == 0:
@@ -1302,6 +1421,9 @@ def create_app(
                 content_type=_content_type(file, original_filename),
                 size_bytes=size_bytes,
                 recorded_at=normalized_recorded_at,
+                groups=[(group.id, group.label) for group in upload_context.groups],
+                lecturer_name=upload_context.lecturer_name,
+                lesson_keys=upload_context.lesson_keys,
             )
             completed = True
         finally:

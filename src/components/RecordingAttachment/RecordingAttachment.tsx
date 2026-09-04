@@ -7,6 +7,7 @@ import { Pair } from '../../models/Pair';
 import { Recording } from '../../models/Recording';
 import { useLessonRecordings, useRetryRecording, useUploadRecording } from '../../queries/useRecordings';
 import { getErrorMessage } from '../../common/utils/getErrorMessage';
+import { createRecordingUploadContext } from '../../common/utils/recordingContext';
 
 const RecordingUploadDialog = lazy(() => import('./RecordingUploadDialog'));
 
@@ -174,6 +175,7 @@ const RecordingAttachment = ({ pair, day, date, enabled = true, onUploadStateCha
       lessonTitle: pair.name,
       scopeLabel: scope.label,
       recordedAt: date,
+      context: createRecordingUploadContext(scope, pair, lessonKeys),
       onProgress: setUploadProgress,
     });
   };

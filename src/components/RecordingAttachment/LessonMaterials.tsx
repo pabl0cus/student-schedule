@@ -1,4 +1,4 @@
-import { lazy, Suspense, useId, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState } from 'react';
 import CaretDown from '../../assets/icons/caret-down.svg?react';
 import { getAttachmentContentUrl } from '../../api/attachments';
 import { useRecordingScope } from '../../common/context/useRecordingScope';
@@ -10,6 +10,7 @@ import { useLessonRecordings } from '../../queries/useRecordings';
 import RecordingAttachment from './RecordingAttachment';
 import { getErrorMessage } from '../../common/utils/getErrorMessage';
 import { isRecordingActive } from '../../common/utils/recordingFormat';
+import { createRecordingUploadContext } from '../../common/utils/recordingContext';
 
 const AttachmentUploadDialog = lazy(() => import('./AttachmentUploadDialog'));
 
@@ -66,6 +67,7 @@ const LessonMaterials = ({ pair, day, date }: Props) => {
   const [attachmentDialogOpen, setAttachmentDialogOpen] = useState(false);
   const [attachmentUploadProgress, setAttachmentUploadProgress] = useState(0);
   const [recordingUploading, setRecordingUploading] = useState(false);
+  const requestedArchiveRef = useRef<string>();
   const uploadAttachmentMutation = useUploadAttachment();
   const scopeKey = scope?.scopeKey;
   const scheduleWeek = scope?.scheduleWeek;
@@ -97,6 +99,25 @@ const LessonMaterials = ({ pair, day, date }: Props) => {
   const processingRecording = recordings.some(isRecordingActive);
   const isBusy = recordingUploading || uploadAttachmentMutation.isLoading || Boolean(scope?.isArchivingSchedule);
 
+  useEffect(() => {
+    const archiveRequestKey = scopeKey && `${scopeKey}:${scope?.weekStart || date}`;
+    if (
+      !expanded ||
+      !archiveRequestKey ||
+      !scope?.ensureScheduleArchived ||
+      scope.isScheduleArchived ||
+      requestedArchiveRef.current === archiveRequestKey
+    ) {
+      return;
+    }
+
+    requestedArchiveRef.current = archiveRequestKey;
+    void scope
+      .ensureScheduleArchived()
+      .then(() => Promise.all([recordingsQuery.refetch(), attachmentsQuery.refetch()]))
+      .catch(() => undefined);
+  }, [attachmentsQuery, date, expanded, recordingsQuery, scope, scopeKey]);
+
   if (!lessonKey || !scope) {
     return null;
   }
@@ -120,6 +141,13 @@ const LessonMaterials = ({ pair, day, date }: Props) => {
     setAttachmentDialogOpen(true);
   };
 
+  const toggleExpanded = () => {
+    if (!expanded) {
+      requestedArchiveRef.current = undefined;
+    }
+    setExpanded((current) => !current);
+  };
+
   const handleAttachmentUpload = async (file: File) => {
     setExpanded(true);
     setAttachmentUploadProgress(0);
@@ -130,6 +158,7 @@ const LessonMaterials = ({ pair, day, date }: Props) => {
       lessonTitle: pair.name,
       scopeLabel: scope.label,
       recordedAt: date,
+      context: createRecordingUploadContext(scope, pair, lessonKeys),
       onProgress: setAttachmentUploadProgress,
     });
   };
@@ -158,7 +187,7 @@ const LessonMaterials = ({ pair, day, date }: Props) => {
         aria-controls={panelId}
         aria-expanded={expanded}
         disabled={expanded && isBusy}
-        onClick={() => setExpanded((current) => !current)}
+        onClick={toggleExpanded}
       >
         <span className="font-semibold">Матеріали</span>
         <span className="flex min-w-0 items-center gap-2">

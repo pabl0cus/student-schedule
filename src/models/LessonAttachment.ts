@@ -11,3 +11,18 @@ export interface LessonAttachment {
   updatedAt?: string;
   contentUrl?: string;
 }
+
+export type AttachmentSearchField = 'lesson_title' | 'file_name';
+
+export interface AttachmentSearchResult extends LessonAttachment {
+  groupId: string;
+  groupLabel: string;
+  matchedFields: AttachmentSearchField[];
+}
+
+export interface AttachmentSearchPage {
+  items: AttachmentSearchResult[];
+  total: number;
+  limit: number;
+  offset: number;
+}

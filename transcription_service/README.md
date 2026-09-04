@@ -108,11 +108,13 @@ the same atomic queue, and local recovery does not invalidate a live remote leas
 
 - `POST /recordings` — multipart recording upload with lesson metadata and optional `recorded_at`.
 - `GET /recordings?lesson_key=...` — recording summaries for a schedule occurrence.
+- `GET /recordings/search` — group-scoped subject, lecturer and transcript search.
 - `GET /recordings/{id}` — recording state and transcript.
 - `GET /recordings/{id}/media` — inline media with byte-range support.
 - `GET /recordings/{id}/download` — forced original-media download.
 - `POST /recordings/{id}/retry` — return a failed recording to the queue.
 - `POST /attachments` and `GET /attachments` — generic lecture attachments.
+- `GET /attachments/search` — group-scoped material search by lesson title or filename.
 - `GET /attachments/{id}/content` — safe attachment download.
 - `PUT /schedule-snapshots/{scope_type}/{scope_id}/{week_start}` — insert an immutable calendar week.
 - `GET /schedule-snapshots/...` — read archived weeks and metadata.
