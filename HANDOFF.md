@@ -1,13 +1,11 @@
 # Handoff: Student Schedule
 
 Стан передавання: **2026-09-04**. Цей каталог є авторитетним знімком усіх локальних доробок до
-`kpi-ua/schedule.kpi.ua`. Не замінюйте його чистим upstream checkout: значна частина функціоналу ще не оформлена
-в окремий опублікований commit. Git-метадані, локальні секрети та користувацькі дані навмисно не входять до
-handoff-каталогу.
+`kpi-ua/schedule.kpi.ua`. Не замінюйте його чистим upstream checkout: тут живе самостійна історія проєкту.
+Локальні секрети та користувацькі дані навмисно не входять до Git.
 
-Upstream base: commit `2c20d3d559cdb412b925528feb4633491bd1ccbe`, branch `master`. У вихідному checkout
-налаштований лише remote `upstream`; `origin` немає. Handoff-каталог передається без `.git`, тому наступний
-власник може спочатку перевірити snapshot, а вже потім ініціалізувати власну історію.
+Upstream base: commit `2c20d3d559cdb412b925528feb4633491bd1ccbe`, branch `master`. Основний репозиторій:
+`https://github.com/pabl0cus/student-schedule`.
 
 ## Що вже реалізовано
 
@@ -24,7 +22,8 @@ Upstream base: commit `2c20d3d559cdb412b925528feb4633491bd1ccbe`, branch `master
 
 - `src/` — React 18, TypeScript, Vite, Tailwind CSS;
 - `transcription_service/` — FastAPI, SQLite, медіа, архівні тижні та community API;
-- `community-transcriber-windows/` — самостійний Python-проєкт Windows-клієнта;
+- [student-schedule-worker-windows](https://github.com/pabl0cus/student-schedule-worker-windows) — окремий
+  репозиторій Windows-клієнта;
 - `docker-compose.yml`, `Dockerfile`, `nginx.conf` — CPU-only серверний стек;
 - `README.md` — запуск, архітектура й межі безпеки;
 - `AGENTS.md` — обов'язкові правила для наступного coding agent;
@@ -61,13 +60,9 @@ docker compose config --quiet
 cd transcription_service
 python -m pip install -r requirements-dev.txt
 python -m pytest
-
-cd ../community-transcriber-windows
-python -m pip install -e ".[dev]"
-python -m pip check
-python -m ruff check src tests
-python -m pytest
 ```
+
+Перевірки та пакування Windows-клієнта запускаються в його окремому репозиторії.
 
 Остання локальна перевірка перед передаванням:
 
@@ -85,11 +80,8 @@ python -m pytest
 для передавання як вихідний код, але не є backup локального deployment. Секрети слід створити заново вже на
 сервері.
 
-Це порожній bootstrap, а не міграція даних. Після формування snapshot локальні Docker-сервіси зупинено, рядки
-записів та їхні медіа/тимчасові копії очищено. Архівні тижні навмисно не переносилися. Зібраний Windows
-installer теж не входить до source-пакета: його слід відтворити з інструкцій підпроєкту. Каталог
-`community-transcriber-windows/` не містить вкладеного `.git` і призначений для подальшої ініціалізації як
-окремий репозиторій.
+Це порожній bootstrap, а не міграція даних. Зібраний Windows installer не входить до основного репозиторію:
+його слід відтворити з інструкцій окремого проєкту клієнта.
 
 ## Межі поточної версії
 
@@ -103,4 +95,5 @@ installer теж не входить до source-пакета: його слід
 - Community-токен і lease захищають доступ, але не доводять чесність вузла; зараз модель довіри — запрошені
   учасники.
 
-Нічого не було запушено, задеплоєно або опубліковано. Зовнішня публікація потребує окремого явного рішення.
+Основний проєкт і Windows-клієнт опубліковані в окремих репозиторіях. Секрети та production-дані до них не
+входять.

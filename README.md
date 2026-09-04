@@ -14,7 +14,8 @@
 - архів минулих тижнів;
 - записи пар і звичайні вкладення;
 - українська транскрипція з пошуком і переходом до таймкоду;
-- окремий Windows-клієнт для волонтерської транскрибації.
+- окремий [Windows-клієнт](https://github.com/pabl0cus/student-schedule-worker-windows) для волонтерської
+  транскрибації.
 
 ## Як це працює
 
@@ -26,9 +27,11 @@ large-v3 і повертає текст із таймкодами.
 
 - `src/` — React, TypeScript і Vite;
 - `transcription_service/` — FastAPI, SQLite, медіа та черга завдань;
-- `community-transcriber-windows/` — Windows-клієнт для Whisper;
 - `docker-compose.yml` — локальний запуск;
 - `docker-compose.production.yml` — підключення до зовнішнього Caddy.
+
+Волонтерський Windows-клієнт живе в окремому репозиторії:
+[pabl0cus/student-schedule-worker-windows](https://github.com/pabl0cus/student-schedule-worker-windows).
 
 ## Локальний запуск
 
@@ -48,9 +51,9 @@ npm ci
 npm run dev
 ```
 
-Докладні налаштування backend є в
-[transcription_service/README.md](transcription_service/README.md), а інструкція для волонтерського клієнта — в
-[community-transcriber-windows/README.md](community-transcriber-windows/README.md).
+Докладні налаштування backend є в [transcription_service/README.md](transcription_service/README.md), а запуск
+волонтерського клієнта описаний у його
+[README](https://github.com/pabl0cus/student-schedule-worker-windows#readme).
 
 ## Важливо
 

@@ -8,7 +8,7 @@ weeks, and Ukrainian transcription. It is derived from `kpi-ua/schedule.kpi.ua` 
 - Frontend: TypeScript, React 18, Vite 6, Tailwind CSS 4.
 - State and data: Zustand, React Context, React Query v3.
 - Backend: Python 3.10+, FastAPI, SQLite, bearer tokens and expiring transcription leases.
-- Community client: Windows tray application, faster-whisper with Whisper large-v3 and NVIDIA GPU.
+- Community client: separate Windows tray application, faster-whisper with Whisper large-v3 and NVIDIA GPU.
 - Runtime: CPU-only Docker Compose server with ffmpeg/nginx; GPUs belong to invited clients.
 
 ## Layout
@@ -29,12 +29,10 @@ transcription_service/
 ├── app/            # FastAPI application, persistence and worker
 ├── tests/          # backend test suite
 └── scripts/        # optional local helpers
-
-community-transcriber-windows/
-├── src/            # standalone Windows client package
-├── tests/          # model-free client tests
-└── packaging/      # Windows build assets
 ```
+
+The Windows client is maintained separately at
+`https://github.com/pabl0cus/student-schedule-worker-windows`.
 
 ## Commands
 
@@ -48,14 +46,11 @@ npm run build
 cd transcription_service
 pip install -r requirements-dev.txt
 pytest
-
-cd ../community-transcriber-windows
-py -m pip install -e ".[dev]"
-py -m pytest
 ```
 
 The server stack starts with `docker compose up --build`. Compose binds to localhost and does not require a GPU.
-Whisper runs in the separately packaged Windows client.
+Whisper runs in the separately packaged Windows client. Run its tests and packaging workflow in the client
+repository.
 
 ## Conventions
 
