@@ -39,11 +39,6 @@ services:
         condition: service_healthy
     ports:
       - '${APP_BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-3000}:80'
-    networks:
-      default:
-      caddy_proxy:
-        aliases:
-          - student-schedule-kpi-web
     healthcheck:
       test: ['CMD', 'wget', '--quiet', '--spider', 'http://127.0.0.1/healthz']
       interval: 30s
@@ -54,8 +49,3 @@ services:
 
 volumes:
   transcription-data:
-
-networks:
-  caddy_proxy:
-    external: true
-    name: home-services_default

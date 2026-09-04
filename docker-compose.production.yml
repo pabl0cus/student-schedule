@@ -1,0 +1,12 @@
+services:
+  web:
+    networks:
+      default:
+      caddy_proxy:
+        aliases:
+          - student-schedule-kpi-web
+
+networks:
+  caddy_proxy:
+    external: true
+    name: home-services_default
