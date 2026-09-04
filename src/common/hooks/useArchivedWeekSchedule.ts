@@ -6,7 +6,7 @@ import { usePutScheduleSnapshot, useScheduleSnapshot } from '../../queries/useSc
 import { Week } from '../../types/Week';
 import { useScheduleWeek } from '../context/useScheduleWeek';
 import { getCalendarWeekStart } from '../utils/calendarWeek';
-import { resolveCalendarSchedule } from '../utils/resolveCalendarSchedule';
+import { resolveCalendarSchedule, restoreArchivedScheduleDates } from '../utils/resolveCalendarSchedule';
 
 interface ArchivedWeekScheduleOptions<T extends Pair> {
   schedule?: Schedule<T>;
@@ -50,7 +50,13 @@ export const useArchivedWeekSchedule = <T extends Pair>({
   );
 
   const archivedSnapshot = snapshotQuery.data;
-  const effectiveWeekSchedule = archivedSnapshot?.schedule.days ?? resolvedWeekSchedule;
+  const effectiveWeekSchedule = useMemo(
+    () =>
+      archivedSnapshot
+        ? restoreArchivedScheduleDates(archivedSnapshot.schedule.days, resolvedWeekSchedule)
+        : resolvedWeekSchedule,
+    [archivedSnapshot, resolvedWeekSchedule],
+  );
   const effectiveScheduleWeek = archivedSnapshot?.schedule.scheduleWeek ?? cycleWeek;
   const ensureKey = `${scopeKey || ''}|${weekStart}`;
   const currentEnsureKey = useRef(ensureKey);
