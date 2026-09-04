@@ -1,4 +1,4 @@
-FROM node:20-alpine AS builder
+FROM node:26-alpine AS builder
 # set working directory (must NOT be `/`: Tailwind 4 auto-scans the whole
 # working directory for class names, and scanning the container root —
 # /proc, /sys, /usr, ... — makes `vite build` hang until it is OOM-killed)
