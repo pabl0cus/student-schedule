@@ -1,0 +1,13 @@
+.git/
+.env*
+.pytest_cache/
+.ruff_cache/
+.venv*/
+__pycache__/
+data/
+scripts/
+tests/
+*.py[cod]
+*.md
+pyproject.toml
+requirements-dev.txt

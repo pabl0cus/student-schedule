@@ -1,0 +1,17 @@
+.git/
+.github/
+.idea/
+.vscode/
+.env*
+.npm-cache/
+.pytest_cache/
+.ruff_cache/
+build/
+coverage/
+data/
+node_modules/
+transcription_service/
+community-transcriber-windows/
+*.log
+*.md
+*.tsbuildinfo

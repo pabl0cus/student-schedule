@@ -1,0 +1,7 @@
+* text=auto
+
+# Shell entry points must remain executable by bash after a Windows checkout.
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
